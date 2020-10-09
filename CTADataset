@@ -1,0 +1,47 @@
+from os import listdir
+from os.path import join
+from PIL import Image
+import json
+import torch
+from torch.utils.data.dataset import Dataset
+from torch.utils.data import DataLoader
+from torchvision.transforms import ToTensor
+
+def is_image_file(file_name):
+    return any(filename.endswith(extension) for extension in ['.png', '.jpg', '.jpeg', '.PNG', '.JPG', '.JPEG'])
+def is_xml_file(file_name):
+    return any(file_name.endswith(extension) for extension in ['.xml'])
+class CTADataset(Dataset):
+    def __init__(Image_dir,Anatation_dir):
+        super(CTADataset,self).__init__()
+        #加了sorted排序，能保证图像名字与解析文件对应
+        self.Image_names = sorted([join(Image_dir,x) for x in listdir(Image_dir) if is_image_file(x)])
+        self.Anatations = sorted([join(Anatation_dir,x) for x in listdir(Anatation_dir) if is_xml_file(x)])
+    
+    def __getitem__(self,index): #返回图像像素，类型，狭窄率，边界框坐标信息
+        data = {}
+        data['Image'] = ToTensor()(Image.open(Image_names[i])) # (C,H,W)
+        #归一化像素值至0-1之间
+        data['Image'] = data['Image'] / 255.0
+        
+        data['class'] = []
+        data['narrow'] = []
+        data['x_min'] = []
+        data['y_min'] = []
+        data['x_max'] = []
+        data['y_max'] = []
+        with open(Anatations[i],'r') as f:
+            image_anatation = json.load(f)
+            for shape in image_anatation['shapes']:
+                object_type,narrow_rate = shape['label'].split('_')
+                data['class'].append(object_type)
+                data['narrow'].append(narrow_rate)
+                data['x_min'].append(shape['points'][0][0])
+                data['y_min'].append(shape['points'][0][1])
+                data['x_max'].append(shape['points'][1][0])
+                data['y_mac'].append(shape['points'][1][1])
+        return data
+        
+    def __len__(self):
+        return len(self.Image_names)
+    
